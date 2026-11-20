@@ -115,57 +115,27 @@ function stage6(){$('stageContent').innerHTML=`<div class="letter"><div style="t
 function finale(){stopSpeech();activeStage=7;nav();background(6);$('character').textContent='✨';$('sceneTag').textContent='РАЗВЯЗКА · АРХИВ СПАСЁН';$('sceneTitle').textContent='Ты — Хранитель русского языка!';$('sceneDesc').textContent='Семь символов вновь сияют. Редактор Тень понял, что правила помогают людям понимать друг друга.';$('game').innerHTML=`<div style="text-align:center"><div class="book">📖</div><h2 class="quest-title">МИССИЯ ВЫПОЛНЕНА!</h2><p>Ты восстановил Книгу семи кодов и раскрыл тайну Редактора Тени.</p></div><div class="story"><div class="speaker">🌑 Редактор Тень</div><p>«Я считал правила ненужными. Но теперь вижу: без них исчезает точный смысл...»</p></div><div class="story"><div class="speaker">🧙 Хранитель Архива</div><p>«Язык живёт, пока люди умеют им пользоваться. Ты доказал это своими решениями!»</p></div><div class="result"><strong>Исследователь:</strong> ${esc(S.name||'Без имени')}<br><strong>Страниц:</strong> ${S.done.length} / 7<br><strong>Правильных попыток:</strong> ${S.correct}<br><strong>Всего попыток:</strong> ${S.attempts}<br><strong>Точность попыток:</strong> ${S.attempts?Math.round(100*S.correct/S.attempts):0}%<br><strong>Символы:</strong> ${missions.map(m=>m.symbol).join(' · ')}<br><strong>Статус:</strong> ХРАНИТЕЛЬ РУССКОГО ЯЗЫКА</div><div class="note">Творческая работа сохранена локально и ожидает содержательной проверки учителем.</div><div class="controls"><button class="btn primary" onclick="downloadReport()">⬇ Скачать достижения</button><button class="btn" onclick="downloadWriting()">📄 Моя мини-новелла</button><button class="btn" onclick="speak('Миссия выполнена! Ты Хранитель русского языка! Язык живёт, пока люди умеют им пользоваться.')">🔊 Финальная реплика</button></div>`;confetti();speak('Невозможно! Ты восстановил все семь страниц!','shadow');setTimeout(()=>speak('Язык живёт, пока люди умеют им пользоваться. Ты — Хранитель русского языка!','keeper'),2700)}function showTeacher(){let t=$('teacher');t.classList.toggle('show');$('teacherData').innerHTML=`<div class="result">Ученик: ${esc(S.name||'не указано')}<br>Выполнено: ${S.done.length}/7<br>Верных попыток: ${S.correct}<br>Всего попыток: ${S.attempts}<br>Процент верных попыток: ${S.attempts?Math.round(S.correct/S.attempts*100):0}%</div><h3>Результаты испытаний</h3>${missions.map((m,i)=>`<div class="note" style="margin:5px 0">${i+1}. ${esc(m.method)} — ${S.done.includes(i)?'пройдено':'не завершено'}; ошибок: ${S.stageResults?.[i]?.mistakes??'—'}</div>`).join('')}<h3>Формула правила</h3><div class="note">${esc(S.rule||'Не заполнено')}</div><h3>Мини-новелла</h3><div class="note" style="white-space:pre-wrap">${esc(S.novella||'Не заполнено')}</div><p class="small">Важно: автоматическая проверка творческой работы не является педагогической оценкой грамотности.</p>`;if(t.classList.contains('show'))t.scrollIntoView({behavior:'smooth'})}function downloadFile(name,text){let b=new Blob(['\ufeff'+text],{type:'text/plain;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}function downloadReport(){downloadFile('ORPHO_отчет_'+(S.name||'ученик')+'.txt',`ORPHO-NARRATIVE ENGINE\nУченик: ${S.name||'Не указан'}\nВыполнено: ${S.done.length}/7\nПравильных попыток: ${S.correct}\nВсего попыток: ${S.attempts}\nТочность: ${S.attempts?Math.round(S.correct/S.attempts*100):0}%\n\n${missions.map((m,i)=>`${i+1}. ${m.method}: ${S.done.includes(i)?'выполнено':'не выполнено'}`).join('\n')}\n\nФормула правила:\n${S.rule||''}\n\nМини-новелла:\n${S.novella||''}\n\nТворческую работу проверяет учитель.`)}function downloadWriting(){downloadFile('Моя_последняя_страница.txt',`Автор: ${S.name||'Ученик'}\n\nМОЯ ФОРМУЛА ВЫБОРА\n${S.rule||''}\n\nТАЙНА, КОТОРУЮ Я РАСКРЫЛ В СТАРОМ АРХИВЕ\n${S.novella||''}`)}function resetGame(){if(!confirm('Начать заново? Локальный прогресс и тексты будут удалены.'))return;S=blank();save();home()}if(S.done.length===7)finale();else home();
 </script>
 <script>
-/* Все задания доступны сразу на общей странице. */
-const taskFromLink = Number(new URLSearchParams(location.search).get('task'));
-const individualTaskMode = Number.isInteger(taskFromLink) && taskFromLink >= 1 && taskFromLink <= 7;
+/* Одна QR-ссылка запускает последовательное прохождение всех семи заданий. */
+const sequentialQrMode = new URLSearchParams(location.search).get('start') === '1';
 
-const baseNav = nav;
-nav = function () {
-  baseNav();
-  document.querySelectorAll('#missions .mission').forEach((button, index) => {
-    const isAssignedTask = individualTaskMode && index === taskFromLink - 1;
-    button.hidden = individualTaskMode && !isAssignedTask;
-    button.disabled = individualTaskMode ? !isAssignedTask : false;
-  });
-};
-
-const baseEnter = enter;
-enter = function (index) {
-  if (individualTaskMode && index !== taskFromLink - 1) {
-    toast('Открыто только назначенное задание.');
-    return;
-  }
-  if (index < 1 || index <= S.done.length) {
-    baseEnter(index);
-  } else {
-    /* Прямой вход в задания 2–7 без прохождения предыдущих этапов. */
-    const completed = S.done;
-    S.done = Array(index).fill(null);
-    try {
-      baseEnter(index);
-    } finally {
-      S.done = completed;
-      nav();
-    }
-  }
-  if (individualTaskMode) $('sceneTag').textContent = `ЗАДАНИЕ ${taskFromLink}`;
-};
-
-if (individualTaskMode) {
-  document.body.classList.add('individual-task-mode');
+if (sequentialQrMode) {
+  document.body.classList.add('sequential-qr-mode');
   const modeStyle = document.createElement('style');
   modeStyle.textContent = `
-    .individual-task-mode .main { grid-template-columns: minmax(0, 1fr); }
-    .individual-task-mode .main > aside,
-    .individual-task-mode #teacher,
-    .individual-task-mode button[onclick="home()"],
-    .individual-task-mode button[onclick="showTeacher()"] { display: none !important; }
+    .sequential-qr-mode .main { grid-template-columns: minmax(0, 1fr); }
+    .sequential-qr-mode .main > aside,
+    .sequential-qr-mode #teacher,
+    .sequential-qr-mode button[onclick="home()"],
+    .sequential-qr-mode button[onclick="showTeacher()"] { display: none !important; }
   `;
   document.head.appendChild(modeStyle);
-  home = function () { enter(taskFromLink - 1); };
-}
 
-nav();
-if (individualTaskMode) enter(taskFromLink - 1);
+  home = function () {
+    if (S.done.length === 7) return finale();
+    enter(Math.min(S.done.length, 6));
+  };
+
+  if (S.done.length < 7) enter(Math.min(S.done.length, 6));
+}
 </script>
 </body></html>
